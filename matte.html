@@ -1,6 +1,11 @@
 <html lang="en">
 <meta charset="utf-8" /> 
-<div id="content" style="text-align: center; margin-top: 200px; font-size: 100px; font-family: sans-serif;"></div>
+<div id="buttons" style="text-align: center; margin-top: 50px;">
+    <button id="button-u" style="font-size: 50px; font-family: sans-serif;">Uppställning</button>
+    <button id="button-m" style="font-size: 50px; font-family: sans-serif;">Multiplikation</button>
+    <button id="button-f" style="font-size: 50px; font-family: sans-serif;">Facit</button>
+</div>
+<div id="content" style="text-align: center; margin-top: 100px; font-size: 100px; font-family: sans-serif;"></div>
 <script>
     const c = document.getElementById('content');
     const h = "Tryck 'u' eller 'm'";
@@ -47,5 +52,10 @@
                 break;
         }
     });
+
+    document.getElementById('button-u').onclick = uppstallning;
+    document.getElementById('button-m').onclick = multiplikation;
+    document.getElementById('button-f').onclick = facit;
+
 
 </script>
