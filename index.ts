@@ -4,18 +4,31 @@ c.innerHTML = h;
 
 let f = [];
 
+function uniformRandom(min: number, max: number) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+}
+
+function biasedRandom(min: number, max: number, bias: number) {
+    while(max > min && Math.random() > bias){
+        max--;
+    }
+    return max;
+}
+
 function uppstallning(){
-    const a = Math.floor(Math.random() * 1000);
-    const b = Math.floor(Math.random() * 1000);
+    const a = uniformRandom(1, 999);
+    const b = uniformRandom(1, 999);
     const e = `${Math.max(a,b)} - ${Math.min(a,b)}`;
     f.push(`${e} = ${Math.max(a,b) - Math.min(a,b)}`);
     c.innerHTML =  e;
 }
 
 function multiplikation(){
-    const a = (Math.floor(Math.random() * 4))+2;
-    const b = (Math.floor(Math.random() * 9))+2;
-    const e = (Math.random() > 0.5) ? `${a} × ${b}` : `${b} × ${a}`;
+    const a = biasedRandom(2, 6, .5);
+    const b = uniformRandom(2, 10);
+    const e = (Math.random() < 0.5) ? `${a} × ${b}` : `${b} × ${a}`;
     f.push(`${e} = ${a * b}`);
     c.innerHTML = e;
 }

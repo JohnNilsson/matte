@@ -2,17 +2,28 @@ var c = document.getElementById('content');
 var h = "Tryck 'u' eller 'm'";
 c.innerHTML = h;
 var f = [];
+function uniformRandom(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+}
+function biasedRandom(min, max, bias) {
+    while (max > min && Math.random() > bias) {
+        max--;
+    }
+    return max;
+}
 function uppstallning() {
-    var a = Math.floor(Math.random() * 1000);
-    var b = Math.floor(Math.random() * 1000);
+    var a = uniformRandom(1, 999);
+    var b = uniformRandom(1, 999);
     var e = Math.max(a, b) + " - " + Math.min(a, b);
     f.push(e + " = " + (Math.max(a, b) - Math.min(a, b)));
     c.innerHTML = e;
 }
 function multiplikation() {
-    var a = (Math.floor(Math.random() * 4)) + 2;
-    var b = (Math.floor(Math.random() * 9)) + 2;
-    var e = (Math.random() > 0.5) ? a + " \u00D7 " + b : b + " \u00D7 " + a;
+    var a = biasedRandom(2, 6, .5);
+    var b = uniformRandom(2, 10);
+    var e = (Math.random() < 0.5) ? a + " \u00D7 " + b : b + " \u00D7 " + a;
     f.push(e + " = " + a * b);
     c.innerHTML = e;
 }
