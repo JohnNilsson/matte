@@ -13,6 +13,14 @@ function biasedRandom(min, max, bias) {
     }
     return max;
 }
+function biasedRandom2(values, bias) {
+    for (var i = 0; i < values.length; i++) {
+        if (Math.random() < bias) {
+            return values[i];
+        }
+    }
+    return values[values.length - 1];
+}
 function uppstallning() {
     var a = uniformRandom(1, 999);
     var b = uniformRandom(1, 999);
@@ -21,7 +29,7 @@ function uppstallning() {
     c.innerHTML = e;
 }
 function multiplikation() {
-    var a = biasedRandom(2, 6, .5);
+    var a = biasedRandom2([7, 4, 3, 5, 6, 2, 10, 1], .5);
     var b = uniformRandom(2, 10);
     var e = (Math.random() < 0.5) ? a + " \u00D7 " + b : b + " \u00D7 " + a;
     f.push(e + " = " + a * b);
