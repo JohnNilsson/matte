@@ -36,7 +36,7 @@ function uppstallning(){
 }
 
 function multiplikation(){
-    const a = biasedRandom2([7, 4, 3, 5, 6, 2, 10,1], .5);
+    const a = biasedRandom2([8, 7, 4, 3, 5, 6, 2, 10,1], .5);
 
     const b = uniformRandom(2, 10);
     const e = (Math.random() < 0.5) ? `${a} × ${b}` : `${b} × ${a}`;
