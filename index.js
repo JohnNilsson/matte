@@ -29,7 +29,8 @@ function uppstallning() {
     c.innerHTML = e;
 }
 function multiplikation() {
-    var a = biasedRandom2([8, 7, 4, 3, 5, 6, 2, 10, 1], .5);
+    //const a = biasedRandom2([8, 7, 4, 3, 5, 6, 2, 10, 1], .5);
+    var a = biasedRandom2([4, 3, 5, 2, 1], .5);
     var b = uniformRandom(2, 10);
     var e = (Math.random() < 0.5) ? a + " \u00D7 " + b : b + " \u00D7 " + a;
     f.push(e + " = " + a * b);
