@@ -4,15 +4,47 @@
         <meta charset="utf-8">
         <title>Matte</title>
         <style>
+            /* Utilities */
+            .container {
+                width: 100%;
+                display: flex;
+                justify-content: space-around;
+            }
+            .row {
+                width: 100%;
+                display: flex;
+            }
+            .col {
+                display: flex;
+                flex: 1 1 0;
+                max-width: 100%;
+            }
+            /* .col-6 {
+                display: flex;
+                flex: 0 0 auto;
+                width: 50%;
+            } */
+            .justify-content-center {
+                justify-content: center;
+            }
+            .justify-content-around {
+                justify-content: space-around;
+
+            }
+            .align-items-center {
+                align-items: center;
+            }
+
+
+            /* page */
             body {
+                height: 100vh;
                 text-align: center;
-                font-size: 100px;
                 font-family: sans-serif;
                 background-color: black;
                 color: #CACA60;
             }
             button {
-                font-size: 50px;
                 background-color: black;
                 color: #CACA60;
                 border: none;
@@ -21,21 +53,55 @@
                 font-weight: bold;
                 color: #AFAFAF;
             }
-            #buttons {
-                margin-top: 50px;
+            .problem {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-flow: column;
+                align-items: center;
+                justify-content: space-evenly;
             }
-            #content {
-                margin-top: 100px;
+            .expression {
+                font-size: 4rem;
+            }
+            .expression > .lhs {
+                flex: 0 1 7em;
+                text-align: right;
+            }
+            .expression > .rhs {
+                flex: 0 1 5em;
+                text-align: left;
+            }
+            .keypad button {
+                font-size: 2rem;
+                display: block;
+                width: 5rem;
+                height: 5rem;
+                text-align: center;
+            }
+            .result-view th {
+                width: 3rem;
+                height: 3rem;
+                font-size: 1.5rem;
+                text-align: center;
+                vertical-align: middle;
+            }
+            .result-view td {
+                border: 1px solid #333;
+                width: 3rem;
+                height: 3rem;
+                font-size: .5rem;
+                line-height: 1rem;
+                letter-spacing: .3rem;
+                padding-top: .2rem;
+                padding-left: .2rem;
+                text-justify: distribute;
+                text-align: left;
+                vertical-align: top;
             }
         </style>
     </head>
     <body>
-        <div id="buttons">
-            <button id="button-u">Uppställning</button>
-            <button id="button-m">Multiplikation</button>
-            <button id="button-f">Facit</button>
-        </div>
-        <div id="content"></div>
         <script src="./index.js"></script>
     </body>
 </html>
