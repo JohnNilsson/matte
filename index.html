@@ -102,6 +102,16 @@
         </style>
     </head>
     <body>
+        <div id="errors"></div>
+        <script>
+            var errorDiv = document.getElementById("errors");
+            window.onerror = function (errorMsg, url, lineNumber, column, errorObj) {
+                var err = document.createElement("div");
+                err.innerText = 'Error: ' + errorMsg + ' Script: ' + url + ' Line: ' + lineNumber
+    + ' Column: ' + column + ' StackTrace: ' +  errorObj;
+                errorDiv.appendChild(err);
+            };
+        </script>
         <script src="./index.js"></script>
     </body>
 </html>
