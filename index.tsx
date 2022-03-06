@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-namespace */
+
 // namespace JSX {
 //   export type IntrinsicElements = {
 //     [K in keyof HTMLElementTagNameMap]: Partial<HTMLElementTagNameMap[K]>;
@@ -83,21 +85,23 @@ namespace State {
 
 namespace Store {
 
-  interface Dispatch<S, A> {
-    (action: A): void;
-    (action: (state: S) => A | undefined): void;
-  }
+  type Thunk<S,A> = (state: S) => A | undefined
+  type Action<S,A> = Thunk<S,A> | A;
+  type Dispatch<S,A> = (action: Action<S,A>) => void;
   type Reducer<S, A> = (action: A) => (state: S) => S;
 
-  export type Store<S, A extends object> = [State.Signal<S>, Dispatch<S, A>];
+  export type Store<S, A> = [State.Signal<S>, Dispatch<S, A>];
 
-  export function create<S, A extends object>(
+  const isThunk = <S,A> (action: Action<S,A>): action is Thunk<S,A> =>
+    typeof action === 'function';
+
+  export function create<S, A>(
     initialState: S,
     update: Reducer<S, A>
   ): Store<S, A> {
     const [signal, setState] = State.create(initialState);
     const dispatch: Dispatch<S, A> = (action) => {
-      if (typeof action == "function") {
+      if (isThunk(action)) {
         setState((s) => {
           const nextAction = action(s);
           if (nextAction !== undefined) {
@@ -163,20 +167,18 @@ const [appState, dispatch] = Store.create<State, Action>(
   (action) => (state) => {
     switch (action.type) {
       case "problem/start":
-        const { a, b, startTime } = action;
         return {
           ...state,
-          currentProblem: { a, b, startTime },
+          currentProblem: { a: action.a, b: action.b, startTime: action.startTime },
         };
 
       case "answer/update":
-        const { answer } = action;
         if (state.currentProblem == null) {
           return state;
         }
         return {
           ...state,
-          currentAnswer: answer,
+          currentAnswer: action.answer,
         };
 
       case "answer/confirm":
@@ -227,6 +229,7 @@ namespace AnswersByProblemIndex {
     let indexed = 0;
     answers((answers) => {
       for (let i = indexed; i < answers.length; i++) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         update(add(answers[i]!));
       }
       indexed = answers.length;
@@ -259,6 +262,7 @@ const problems = State.map(answersByProblem, index => {
       let lastAnswerTime = 0;
       let correctAnswers = 0;
       for(let i = 0; i<10 && i<answers.length; i++){
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const answer = answers[i]!;
         if(answer.answer === c){
           isCorrect[i] = true;
@@ -289,8 +293,8 @@ const problems = State.map(answersByProblem, index => {
 });
 
 problems(p => {
-  console.log("problems",p);
   setTimeout(() => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const problem = p[0]!;
     dispatch({type:"problem/start", a: problem.a, b: problem.b, startTime: Date.now()});
   },0);
@@ -366,8 +370,10 @@ function createProblemView([appState, dispatch]: Store.Store<
       <div class="lhs"></div>
       <div class="rhs"></div>
     `;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lhs = root.querySelector(".lhs")!;
     problem((p) => (lhs.innerHTML = p != null ? `${p.a} × ${p.b} =&nbsp;` : ""));
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rhs = root.querySelector(".rhs")!;
     answer((a) => (rhs.innerHTML = a != null ? String(a) : ""));
     return root;
@@ -386,7 +392,10 @@ function createProblemView([appState, dispatch]: Store.Store<
       <tr><td><button>7</button></td><td><button>8</button></td><td><button>9</button></td></tr>
       <tr><td><button>✓</button></td><td><button>0</button></td><td><button>⌫</button></td></tr>
     `;
-    root.querySelectorAll("button").forEach((button) => {
+    const buttons = root.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {    
+      const button = buttons[i]!;
+    
       button.addEventListener("click", (ev) => {
         const btn = ev.target as HTMLButtonElement;
         const txt = btn.innerHTML;
@@ -412,7 +421,7 @@ function createProblemView([appState, dispatch]: Store.Store<
           default:
         }
       });
-    });
+    }
     return root;
   }
 }

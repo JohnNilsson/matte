@@ -1,8 +1,5 @@
 "use strict";
-// namespace JSX {
-//   export type IntrinsicElements = {
-//     [K in keyof HTMLElementTagNameMap]: Partial<HTMLElementTagNameMap[K]>;
-//   };
+/* eslint-disable @typescript-eslint/no-namespace */
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -24,6 +21,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 var _a;
+// namespace JSX {
+//   export type IntrinsicElements = {
+//     [K in keyof HTMLElementTagNameMap]: Partial<HTMLElementTagNameMap[K]>;
+//   };
 //   type Component<P extends object> = (
 //     props: P,
 //     ...children: Node[]
@@ -96,10 +97,13 @@ var State;
 })(State || (State = {}));
 var Store;
 (function (Store) {
+    var isThunk = function (action) {
+        return typeof action === 'function';
+    };
     function create(initialState, update) {
         var _a = State.create(initialState), signal = _a[0], setState = _a[1];
         var dispatch = function (action) {
-            if (typeof action == "function") {
+            if (isThunk(action)) {
                 setState(function (s) {
                     var nextAction = action(s);
                     if (nextAction !== undefined) {
@@ -129,14 +133,12 @@ var _b = Store.create({
 }, function (action) { return function (state) {
     switch (action.type) {
         case "problem/start":
-            var a = action.a, b = action.b, startTime = action.startTime;
-            return __assign(__assign({}, state), { currentProblem: { a: a, b: b, startTime: startTime } });
+            return __assign(__assign({}, state), { currentProblem: { a: action.a, b: action.b, startTime: action.startTime } });
         case "answer/update":
-            var answer = action.answer;
             if (state.currentProblem == null) {
                 return state;
             }
-            return __assign(__assign({}, state), { currentAnswer: answer });
+            return __assign(__assign({}, state), { currentAnswer: action.answer });
         case "answer/confirm":
             return state.currentProblem == null || state.currentAnswer == null
                 ? state
@@ -167,6 +169,7 @@ var AnswersByProblemIndex;
         var indexed = 0;
         answers(function (answers) {
             for (var i = indexed; i < answers.length; i++) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 update(add(answers[i]));
             }
             indexed = answers.length;
@@ -191,6 +194,7 @@ var problems = State.map(answersByProblem, function (index) {
             var lastAnswerTime = 0;
             var correctAnswers = 0;
             for (var i = 0; i < 10 && i < answers_1.length; i++) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 var answer = answers_1[i];
                 if (answer.answer === c) {
                     isCorrect[i] = true;
@@ -221,8 +225,8 @@ var problems = State.map(answersByProblem, function (index) {
     return problems;
 });
 problems(function (p) {
-    console.log("problems", p);
     setTimeout(function () {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         var problem = p[0];
         dispatch({ type: "problem/start", a: problem.a, b: problem.b, startTime: Date.now() });
     }, 0);
@@ -280,8 +284,10 @@ function createProblemView(_a) {
         var root = document.createElement("div");
         root.className = "expression row justify-content-center";
         root.innerHTML = "\n      <div class=\"lhs\"></div>\n      <div class=\"rhs\"></div>\n    ";
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         var lhs = root.querySelector(".lhs");
         problem(function (p) { return (lhs.innerHTML = p != null ? "".concat(p.a, " \u00D7 ").concat(p.b, " =&nbsp;") : ""); });
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         var rhs = root.querySelector(".rhs");
         answer(function (a) { return (rhs.innerHTML = a != null ? String(a) : ""); });
         return root;
@@ -290,7 +296,9 @@ function createProblemView(_a) {
         var root = document.createElement("table");
         root.className = "keypad";
         root.innerHTML = "\n      <tr><td><button>1</button></td><td><button>2</button></td><td><button>3</button></td></tr>\n      <tr><td><button>4</button></td><td><button>5</button></td><td><button>6</button></td></tr>\n      <tr><td><button>7</button></td><td><button>8</button></td><td><button>9</button></td></tr>\n      <tr><td><button>\u2713</button></td><td><button>0</button></td><td><button>\u232B</button></td></tr>\n    ";
-        root.querySelectorAll("button").forEach(function (button) {
+        var buttons = root.querySelectorAll("button");
+        for (var i = 0; i < buttons.length; i++) {
+            var button = buttons[i];
             button.addEventListener("click", function (ev) {
                 var btn = ev.target;
                 var txt = btn.innerHTML;
@@ -316,7 +324,7 @@ function createProblemView(_a) {
                     default:
                 }
             });
-        });
+        }
         return root;
     }
 }
