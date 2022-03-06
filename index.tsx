@@ -1,4 +1,89 @@
-/* eslint-disable @typescript-eslint/no-namespace */
+//
+// Model
+//
+
+type State = {
+  currentProblem: Problem | null;
+  currentAnswer: number | null;
+  answers: Answer[];
+  activeProblems: {
+    as: boolean[];
+    bs: boolean[];
+  };
+};
+
+type Problem = {
+  startTime: number;
+  a: number;
+  b: number;
+};
+
+type Answer = Problem & {
+  answer: number;
+  answerTime: number;
+};
+
+const initialState: State = {
+  currentProblem: null,
+  currentAnswer: null,
+  answers: JSON.parse(window.localStorage.getItem("answers") ?? "[]") as Answer[],
+  activeProblems: {
+    as: [false, true, true, true, true, true, true, true, true, true, true],
+    bs: [false, true, true, true, true, true, true, true, true, true, true],
+  },
+};
+
+//
+// Actions
+//
+type Action =
+  | { type: "problem/start"; a: number; b: number; startTime: number }
+  | { type: "answer/update"; answer: number | null }
+  | { type: "answer/confirm"; answerTime: number }
+  | { type: "history/clear" };
+
+const updateState =
+  (action: Action) =>
+  (state: State): State => {
+    switch (action.type) {
+      case "problem/start":
+        return {
+          ...state,
+          currentProblem: {
+            a: action.a,
+            b: action.b,
+            startTime: action.startTime,
+          },
+        };
+
+      case "answer/update":
+        if (state.currentProblem == null) {
+          return state;
+        }
+        return {
+          ...state,
+          currentAnswer: action.answer,
+        };
+      case "answer/confirm":
+        return state.currentProblem == null || state.currentAnswer == null
+          ? state
+          : {
+              ...state,
+              currentProblem: null,
+              currentAnswer: null,
+              answers: [
+                ...state.answers,
+                {
+                  ...state.currentProblem,
+                  answer: state.currentAnswer,
+                  answerTime: action.answerTime,
+                },
+              ],
+            };
+      case "history/clear":
+        return { ...state, answers: [] };
+    }
+  };
 
 // namespace JSX {
 //   export type IntrinsicElements = {
@@ -31,15 +116,6 @@
 //   }
 // }
 
-
-//
-// Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
-// where trials are attemts to answer a problem.
-// Thus bin problems by number of successful answers (since last error?), order each bin by time last answered
-// For problems with no answers simply assign a random order
-// Then, from the problems with least answers, pick the problem least recently answered
-//
-
 namespace State {
   type SetState<T> = (update: (state: T) => T) => void;
 
@@ -48,11 +124,11 @@ namespace State {
 
   export function create<T>(state: T): [Signal<T>, SetState<T>] {
     const listeners: Listener<T>[] = [];
-    const signal: Signal<T> = (listener) => {
+    const signal: Signal<T> = listener => {
       listeners.push(listener);
       listener(state);
     };
-    const setState: SetState<T> = (update) => {
+    const setState: SetState<T> = update => {
       const newState = update(state);
       if (!Object.is(state, newState)) {
         for (const listener of listeners) {
@@ -79,30 +155,25 @@ namespace State {
     };
 
   export function map<T, U>(signal: Signal<T>, f: (state: T) => U): Signal<U> {
-    return (listener) => signal(on(f, listener));
+    return listener => signal(on(f, listener));
   }
 }
 
 namespace Store {
-
-  type Thunk<S,A> = (state: S) => A | undefined
-  type Action<S,A> = Thunk<S,A> | A;
-  type Dispatch<S,A> = (action: Action<S,A>) => void;
+  type Thunk<S, A> = (state: S) => A | undefined;
+  type Action<S, A> = Thunk<S, A> | A;
+  type Dispatch<S, A> = (action: Action<S, A>) => void;
   type Reducer<S, A> = (action: A) => (state: S) => S;
 
   export type Store<S, A> = [State.Signal<S>, Dispatch<S, A>];
 
-  const isThunk = <S,A> (action: Action<S,A>): action is Thunk<S,A> =>
-    typeof action === 'function';
+  const isThunk = <S, A>(action: Action<S, A>): action is Thunk<S, A> => typeof action === "function";
 
-  export function create<S, A>(
-    initialState: S,
-    update: Reducer<S, A>
-  ): Store<S, A> {
+  export function create<S, A>(initialState: S, update: Reducer<S, A>): Store<S, A> {
     const [signal, setState] = State.create(initialState);
-    const dispatch: Dispatch<S, A> = (action) => {
+    const dispatch: Dispatch<S, A> = action => {
       if (isThunk(action)) {
-        setState((s) => {
+        setState(s => {
           const nextAction = action(s);
           if (nextAction !== undefined) {
             return update(nextAction)(s);
@@ -118,99 +189,21 @@ namespace Store {
   }
 }
 
-//
-// Model
-//
+const [appState, dispatch] = Store.create<State, Action>(initialState, updateState);
 
-type State = {
-  currentProblem: Problem | null;
-  currentAnswer: number | null;
-  answers: Answer[];
-  problems: {
-    as: boolean[];
-    bs: boolean[];
-  };
-};
+appState(s => console.log("appState", s));
 
-type Problem = {
-  startTime: number;
-  a: number;
-  b: number;
-};
+const answers = State.map(appState, s => s.answers);
 
-type Answer = Problem & {
-  answer: number;
-  answerTime: number;
-};
+answers(answers => window.localStorage.setItem("answers", JSON.stringify(answers)));
 
 //
-// Actions
+// Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
+// where trials are attemts to answer a problem.
+// Thus bin problems by number of successful answers (since last error?), order each bin by time last answered
+// For problems with no answers simply assign a random order
+// Then, from the problems with least answers, pick the problem least recently answered
 //
-type Action =
-  | { type: "problem/start"; a: number; b: number; startTime: number }
-  | { type: "answer/update"; answer: number | null }
-  | { type: "answer/confirm"; answerTime: number }
-  | { type: "history/clear" };
-
-const [appState, dispatch] = Store.create<State, Action>(
-  {
-    currentProblem: null,
-    currentAnswer: null,
-    answers: JSON.parse(
-      window.localStorage.getItem("answers") ?? "[]"
-    ) as Answer[],
-    problems: {
-      as: [false, true, true, true, true, true, true, true, true, true, true],
-      bs: [false, true, true, true, true, true, true, true, true, true, true],
-    },
-  },
-  (action) => (state) => {
-    switch (action.type) {
-      case "problem/start":
-        return {
-          ...state,
-          currentProblem: { a: action.a, b: action.b, startTime: action.startTime },
-        };
-
-      case "answer/update":
-        if (state.currentProblem == null) {
-          return state;
-        }
-        return {
-          ...state,
-          currentAnswer: action.answer,
-        };
-
-      case "answer/confirm":
-        return state.currentProblem == null || state.currentAnswer == null
-          ? state
-          : {
-              ...state,
-              currentProblem: null,
-              currentAnswer: null,
-              answers: [
-                ...state.answers,
-                {
-                  ...state.currentProblem,
-                  answer: state.currentAnswer,
-                  answerTime: action.answerTime,
-                },
-              ],
-            };
-
-      case "history/clear":
-        return { ...state, answers: [] };
-    }
-  }
-);
-
-appState(s => console.log("appState",s));
-
-const answers = State.map(appState, (s) => s.answers);
-
-answers((answers) =>
-  window.localStorage.setItem("answers", JSON.stringify(answers))
-);
 
 // Indices
 namespace AnswersByProblemIndex {
@@ -227,7 +220,7 @@ namespace AnswersByProblemIndex {
     const [subbscribe, update] = State.create<Index>({});
 
     let indexed = 0;
-    answers((answers) => {
+    answers(answers => {
       for (let i = indexed; i < answers.length; i++) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         update(add(answers[i]!));
@@ -241,53 +234,53 @@ namespace AnswersByProblemIndex {
 const answersByProblem = AnswersByProblemIndex.create(answers);
 
 type Problems = {
-  a: number,
-  b: number,
-  isCorrect: boolean[],
-  lastAnswerTime: number,
-  correctAnswers: number
+  a: number;
+  b: number;
+  isCorrect: boolean[];
+  lastAnswerTime: number;
+  correctAnswers: number;
 }[];
 const problems = State.map(answersByProblem, index => {
   const problems: Problems = [];
-  for(let a = 1; a < 10; a++){
-    for(let b = 1; b < 10; b++){
-      const c = a*b;
-      const p = AnswersByProblemIndex.key(a,b);
-      let answers = index[p]??[];
-      answers.sort((a1,a2)=>a2.answerTime - a1.answerTime); //a1-a2 = ascending, a2-a1 = descending;
-      answers = answers.slice(0,Math.min(answers.length,9));
+  for (let a = 1; a < 10; a++) {
+    for (let b = 1; b < 10; b++) {
+      const c = a * b;
+      const p = AnswersByProblemIndex.key(a, b);
+      let answers = index[p] ?? [];
+      answers.sort((a1, a2) => a2.answerTime - a1.answerTime); //a1-a2 = ascending, a2-a1 = descending;
+      answers = answers.slice(0, Math.min(answers.length, 9));
       answers.reverse();
 
       const isCorrect: boolean[] = [];
       let lastAnswerTime = 0;
       let correctAnswers = 0;
-      for(let i = 0; i<10 && i<answers.length; i++){
+      for (let i = 0; i < 10 && i < answers.length; i++) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const answer = answers[i]!;
-        if(answer.answer === c){
+        if (answer.answer === c) {
           isCorrect[i] = true;
           correctAnswers++;
         } else {
           isCorrect[i] = false;
           correctAnswers = 0;
         }
-        if(answer.answerTime > lastAnswerTime){
+        if (answer.answerTime > lastAnswerTime) {
           lastAnswerTime = answer.answerTime;
         }
       }
-      problems.push({a,b,isCorrect,lastAnswerTime,correctAnswers});
-    }    
+      problems.push({ a, b, isCorrect, lastAnswerTime, correctAnswers });
+    }
   }
-  problems.sort((p1,p2) => {
+  problems.sort((p1, p2) => {
     const byCorrectAnswersAscending = p1.correctAnswers - p2.correctAnswers;
-    if(byCorrectAnswersAscending !== 0){
+    if (byCorrectAnswersAscending !== 0) {
       return byCorrectAnswersAscending;
     }
     const byLastAnswerTimeAscending = p1.lastAnswerTime - p2.lastAnswerTime;
-    if(byLastAnswerTimeAscending !== 0){
+    if (byLastAnswerTimeAscending !== 0) {
       return byLastAnswerTimeAscending;
     }
-    return Math.random()-0.5;
+    return Math.random() - 0.5;
   });
   return problems;
 });
@@ -296,31 +289,32 @@ problems(p => {
   setTimeout(() => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const problem = p[0]!;
-    dispatch({type:"problem/start", a: problem.a, b: problem.b, startTime: Date.now()});
-  },0);
+    dispatch({
+      type: "problem/start",
+      a: problem.a,
+      b: problem.b,
+      startTime: Date.now(),
+    });
+  }, 0);
 });
-
 
 //
 // Views
 //
 
-function createProblemView([appState, dispatch]: Store.Store<
-  State,
-  Action
->): HTMLElement {
+function createProblemView([appState, dispatch]: Store.Store<State, Action>): HTMLElement {
   const root = document.createElement("div");
   root.className = "problem";
 
-  const currentProblem = State.map(appState, (s) => s.currentProblem);
-  const currentAnswer = State.map(appState, (s) => s.currentAnswer);
+  const currentProblem = State.map(appState, s => s.currentProblem);
+  const currentAnswer = State.map(appState, s => s.currentAnswer);
 
   root.appendChild(createExpression(currentProblem, currentAnswer));
 
   root.appendChild(
     createKeypad({
       onDigit(digit) {
-        dispatch((state) => {
+        dispatch(state => {
           const currentAnswer = state.currentAnswer;
           if (currentAnswer === null) {
             return {
@@ -336,7 +330,7 @@ function createProblemView([appState, dispatch]: Store.Store<
         });
       },
       onErase() {
-        dispatch((state) => {
+        dispatch(state => {
           const answer = state.currentAnswer;
           if (answer === null) {
             return undefined;
@@ -345,9 +339,7 @@ function createProblemView([appState, dispatch]: Store.Store<
           if (answerString.length == 1) {
             return { type: "answer/update", answer: null };
           } else {
-            const newAnswer = Number(
-              answerString.substring(0, answerString.length - 1)
-            );
+            const newAnswer = Number(answerString.substring(0, answerString.length - 1));
             return { type: "answer/update", answer: newAnswer };
           }
         });
@@ -360,10 +352,7 @@ function createProblemView([appState, dispatch]: Store.Store<
 
   return root;
 
-  function createExpression(
-    problem: State.Signal<Problem | null>,
-    answer: State.Signal<number | null>
-  ) {
+  function createExpression(problem: State.Signal<Problem | null>, answer: State.Signal<number | null>) {
     const root = document.createElement("div");
     root.className = "expression row justify-content-center";
     root.innerHTML = `
@@ -372,18 +361,14 @@ function createProblemView([appState, dispatch]: Store.Store<
     `;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lhs = root.querySelector(".lhs")!;
-    problem((p) => (lhs.innerHTML = p != null ? `${p.a} × ${p.b} =&nbsp;` : ""));
+    problem(p => (lhs.innerHTML = p != null ? `${p.a} × ${p.b} =&nbsp;` : ""));
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rhs = root.querySelector(".rhs")!;
-    answer((a) => (rhs.innerHTML = a != null ? String(a) : ""));
+    answer(a => (rhs.innerHTML = a != null ? String(a) : ""));
     return root;
   }
 
-  function createKeypad(props: {
-    onDigit(digit: string): void;
-    onErase(): void;
-    onConfirm(): void;
-  }) {
+  function createKeypad(props: { onDigit(digit: string): void; onErase(): void; onConfirm(): void }) {
     const root = document.createElement("table");
     root.className = "keypad";
     root.innerHTML = `
@@ -393,10 +378,10 @@ function createProblemView([appState, dispatch]: Store.Store<
       <tr><td><button>✓</button></td><td><button>0</button></td><td><button>⌫</button></td></tr>
     `;
     const buttons = root.querySelectorAll("button");
-    for (let i = 0; i < buttons.length; i++) {    
+    for (let i = 0; i < buttons.length; i++) {
       const button = buttons[i]!;
-    
-      button.addEventListener("click", (ev) => {
+
+      button.addEventListener("click", ev => {
         const btn = ev.target as HTMLButtonElement;
         const txt = btn.innerHTML;
         switch (txt) {
@@ -458,15 +443,15 @@ function createResultView(width: number, height: number, problems: State.Signal<
       const td = document.createElement("td");
       const r = row;
       const c = col;
-      const signal = State.map(problems,problems => {
+      const signal = State.map(problems, problems => {
         const p = problems.find(p => p.a === r && p.b == c);
-        if(p === undefined){
+        if (p === undefined) {
           return "";
         } else {
-          return p.isCorrect.map(correct => correct ? "🟢":"🔴").join("");
+          return p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join("");
         }
       });
-      signal(s => td.innerHTML = s);
+      signal(s => (td.innerHTML = s));
       tr.appendChild(td);
     }
     return tr;

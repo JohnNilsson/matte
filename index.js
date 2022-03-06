@@ -1,5 +1,7 @@
 "use strict";
-/* eslint-disable @typescript-eslint/no-namespace */
+//
+// Model
+//
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -21,6 +23,40 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 var _a;
+var initialState = {
+    currentProblem: null,
+    currentAnswer: null,
+    answers: JSON.parse((_a = window.localStorage.getItem("answers")) !== null && _a !== void 0 ? _a : "[]"),
+    activeProblems: {
+        as: [false, true, true, true, true, true, true, true, true, true, true],
+        bs: [false, true, true, true, true, true, true, true, true, true, true],
+    },
+};
+var updateState = function (action) {
+    return function (state) {
+        switch (action.type) {
+            case "problem/start":
+                return __assign(__assign({}, state), { currentProblem: {
+                        a: action.a,
+                        b: action.b,
+                        startTime: action.startTime,
+                    } });
+            case "answer/update":
+                if (state.currentProblem == null) {
+                    return state;
+                }
+                return __assign(__assign({}, state), { currentAnswer: action.answer });
+            case "answer/confirm":
+                return state.currentProblem == null || state.currentAnswer == null
+                    ? state
+                    : __assign(__assign({}, state), { currentProblem: null, currentAnswer: null, answers: __spreadArray(__spreadArray([], state.answers, true), [
+                            __assign(__assign({}, state.currentProblem), { answer: state.currentAnswer, answerTime: action.answerTime }),
+                        ], false) });
+            case "history/clear":
+                return __assign(__assign({}, state), { answers: [] });
+        }
+    };
+};
 // namespace JSX {
 //   export type IntrinsicElements = {
 //     [K in keyof HTMLElementTagNameMap]: Partial<HTMLElementTagNameMap[K]>;
@@ -48,13 +84,6 @@ var _a;
 //     return element;
 //   }
 // }
-//
-// Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
-// where trials are attemts to answer a problem.
-// Thus bin problems by number of successful answers (since last error?), order each bin by time last answered
-// For problems with no answers simply assign a random order
-// Then, from the problems with least answers, pick the problem least recently answered
-//
 var State;
 (function (State) {
     function create(state) {
@@ -97,9 +126,7 @@ var State;
 })(State || (State = {}));
 var Store;
 (function (Store) {
-    var isThunk = function (action) {
-        return typeof action === 'function';
-    };
+    var isThunk = function (action) { return typeof action === "function"; };
     function create(initialState, update) {
         var _a = State.create(initialState), signal = _a[0], setState = _a[1];
         var dispatch = function (action) {
@@ -122,38 +149,17 @@ var Store;
     }
     Store.create = create;
 })(Store || (Store = {}));
-var _b = Store.create({
-    currentProblem: null,
-    currentAnswer: null,
-    answers: JSON.parse((_a = window.localStorage.getItem("answers")) !== null && _a !== void 0 ? _a : "[]"),
-    problems: {
-        as: [false, true, true, true, true, true, true, true, true, true, true],
-        bs: [false, true, true, true, true, true, true, true, true, true, true],
-    },
-}, function (action) { return function (state) {
-    switch (action.type) {
-        case "problem/start":
-            return __assign(__assign({}, state), { currentProblem: { a: action.a, b: action.b, startTime: action.startTime } });
-        case "answer/update":
-            if (state.currentProblem == null) {
-                return state;
-            }
-            return __assign(__assign({}, state), { currentAnswer: action.answer });
-        case "answer/confirm":
-            return state.currentProblem == null || state.currentAnswer == null
-                ? state
-                : __assign(__assign({}, state), { currentProblem: null, currentAnswer: null, answers: __spreadArray(__spreadArray([], state.answers, true), [
-                        __assign(__assign({}, state.currentProblem), { answer: state.currentAnswer, answerTime: action.answerTime }),
-                    ], false) });
-        case "history/clear":
-            return __assign(__assign({}, state), { answers: [] });
-    }
-}; }), appState = _b[0], dispatch = _b[1];
+var _b = Store.create(initialState, updateState), appState = _b[0], dispatch = _b[1];
 appState(function (s) { return console.log("appState", s); });
 var answers = State.map(appState, function (s) { return s.answers; });
-answers(function (answers) {
-    return window.localStorage.setItem("answers", JSON.stringify(answers));
-});
+answers(function (answers) { return window.localStorage.setItem("answers", JSON.stringify(answers)); });
+//
+// Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
+// where trials are attemts to answer a problem.
+// Thus bin problems by number of successful answers (since last error?), order each bin by time last answered
+// For problems with no answers simply assign a random order
+// Then, from the problems with least answers, pick the problem least recently answered
+//
 // Indices
 var AnswersByProblemIndex;
 (function (AnswersByProblemIndex) {
@@ -228,7 +234,12 @@ problems(function (p) {
     setTimeout(function () {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         var problem = p[0];
-        dispatch({ type: "problem/start", a: problem.a, b: problem.b, startTime: Date.now() });
+        dispatch({
+            type: "problem/start",
+            a: problem.a,
+            b: problem.b,
+            startTime: Date.now(),
+        });
     }, 0);
 });
 //
@@ -363,10 +374,10 @@ function createResultView(width, height, problems) {
                     return "";
                 }
                 else {
-                    return p.isCorrect.map(function (correct) { return correct ? "🟢" : "🔴"; }).join("");
+                    return p.isCorrect.map(function (correct) { return (correct ? "🟢" : "🔴"); }).join("");
                 }
             });
-            signal(function (s) { return td.innerHTML = s; });
+            signal(function (s) { return (td.innerHTML = s); });
             tr.appendChild(td);
         };
         for (var col = 1; col < width; col++) {
