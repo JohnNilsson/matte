@@ -41,6 +41,10 @@ var updateState = function (action) {
                         b: action.b,
                         startTime: action.startTime,
                     } });
+            case "activeProblems/toggle/a":
+                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { as: state.activeProblems.as.map(function (isEnabled, problem) { return (problem === action.a ? !isEnabled : isEnabled); }) }) });
+            case "activeProblems/toggle/b":
+                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { bs: state.activeProblems.bs.map(function (isEnabled, problem) { return (problem === action.b ? !isEnabled : isEnabled); }) }) });
             case "answer/update":
                 if (state.currentProblem == null) {
                     return state;
@@ -54,6 +58,9 @@ var updateState = function (action) {
                         ], false) });
             case "history/clear":
                 return __assign(__assign({}, state), { answers: [] });
+            default:
+                var type = action.type;
+                throw new Error("Unhandled action: '".concat(type, "'"));
         }
     };
 };
@@ -86,7 +93,8 @@ var updateState = function (action) {
 // }
 var State;
 (function (State) {
-    function create(state) {
+    function create(state, eq) {
+        if (eq === void 0) { eq = Object.is; }
         var listeners = [];
         var signal = function (listener) {
             listeners.push(listener);
@@ -94,7 +102,7 @@ var State;
         };
         var setState = function (update) {
             var newState = update(state);
-            if (!Object.is(state, newState)) {
+            if (!eq(state, newState)) {
                 for (var _i = 0, listeners_1 = listeners; _i < listeners_1.length; _i++) {
                     var listener = listeners_1[_i];
                     listener(newState, state);
@@ -123,6 +131,21 @@ var State;
         return function (listener) { return signal(on(f, listener)); };
     }
     State.map = map;
+    var sequenceEquals = function (a, b) {
+        for (var i = 0; i < a.length; i++) {
+            if (!Object.is(a[i], b[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
+    function zip(a, b, f) {
+        var _a = State.create([undefined, undefined], sequenceEquals), signal = _a[0], setState = _a[1];
+        a(function (a) { return setState(function (s) { return [a, s[1]]; }); });
+        b(function (b) { return setState(function (s) { return [s[0], b]; }); });
+        return map(signal, function (s) { return f.apply(void 0, s); });
+    }
+    State.zip = zip;
 })(State || (State = {}));
 var Store;
 (function (Store) {
@@ -185,9 +208,9 @@ var AnswersByProblemIndex;
     AnswersByProblemIndex.create = create;
 })(AnswersByProblemIndex || (AnswersByProblemIndex = {}));
 var answersByProblem = AnswersByProblemIndex.create(answers);
-var problems = State.map(answersByProblem, function (index) {
+var results = State.map(answersByProblem, function (index) {
     var _a;
-    var problems = [];
+    var results = [];
     for (var a = 1; a < 10; a++) {
         for (var b = 1; b < 10; b++) {
             var c = a * b;
@@ -214,10 +237,10 @@ var problems = State.map(answersByProblem, function (index) {
                     lastAnswerTime = answer.answerTime;
                 }
             }
-            problems.push({ a: a, b: b, isCorrect: isCorrect, lastAnswerTime: lastAnswerTime, correctAnswers: correctAnswers });
+            results.push({ a: a, b: b, isCorrect: isCorrect, lastAnswerTime: lastAnswerTime, correctAnswers: correctAnswers });
         }
     }
-    problems.sort(function (p1, p2) {
+    results.sort(function (p1, p2) {
         var byCorrectAnswersAscending = p1.correctAnswers - p2.correctAnswers;
         if (byCorrectAnswersAscending !== 0) {
             return byCorrectAnswersAscending;
@@ -228,17 +251,26 @@ var problems = State.map(answersByProblem, function (index) {
         }
         return Math.random() - 0.5;
     });
-    return problems;
+    return results;
 });
-problems(function (p) {
+// When answer is posted, trigger next problem
+results(function (p) {
     setTimeout(function () {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        var problem = p[0];
-        dispatch({
-            type: "problem/start",
-            a: problem.a,
-            b: problem.b,
-            startTime: Date.now(),
+        dispatch(function (state) {
+            var _a = state.activeProblems, as = _a.as, bs = _a.bs;
+            for (var _i = 0, p_1 = p; _i < p_1.length; _i++) {
+                var _b = p_1[_i], a = _b.a, b = _b.b;
+                if (as[a] && bs[b]) {
+                    return {
+                        type: "problem/start",
+                        a: a,
+                        b: b,
+                        startTime: Date.now(),
+                    };
+                }
+            }
+            return undefined;
         });
     }, 0);
 });
@@ -339,7 +371,9 @@ function createProblemView(_a) {
         return root;
     }
 }
-function createResultView(width, height, problems) {
+function createResultView(width, height, vm) {
+    var results = State.map(vm, function (s) { return s.results; });
+    var activeProblems = State.map(vm, function (s) { return s.activeProblems; });
     var table = document.createElement("table");
     table.className = "result-view";
     table.appendChild(createHeaderRow());
@@ -352,10 +386,19 @@ function createResultView(width, height, problems) {
         var th = document.createElement("th");
         th.innerText = "×";
         tr.appendChild(th);
-        for (var col = 1; col < width; col++) {
+        var _loop_1 = function (col) {
             var th_1 = document.createElement("th");
             th_1.innerHTML = String(col);
+            th_1.addEventListener("click", function () {
+                dispatch({ type: "activeProblems/toggle/b", b: col });
+            });
+            activeProblems(function (ps) {
+                th_1.className = ps.bs[col] ? "enabled" : "disabled";
+            });
             tr.appendChild(th_1);
+        };
+        for (var col = 1; col < width; col++) {
+            _loop_1(col);
         }
         return tr;
     }
@@ -363,12 +406,18 @@ function createResultView(width, height, problems) {
         var tr = document.createElement("tr");
         var th = document.createElement("th");
         th.innerHTML = String(row);
+        th.addEventListener("click", function () {
+            dispatch({ type: "activeProblems/toggle/a", a: row });
+        });
+        activeProblems(function (ps) {
+            th.className = ps.as[row] ? "enabled" : "disabled";
+        });
         tr.appendChild(th);
-        var _loop_1 = function (col) {
+        var _loop_2 = function (col) {
             var td = document.createElement("td");
             var r = row;
             var c = col;
-            var signal = State.map(problems, function (problems) {
+            var signal = State.map(results, function (problems) {
                 var p = problems.find(function (p) { return p.a === r && p.b == c; });
                 if (p === undefined) {
                     return "";
@@ -381,7 +430,7 @@ function createResultView(width, height, problems) {
             tr.appendChild(td);
         };
         for (var col = 1; col < width; col++) {
-            _loop_1(col);
+            _loop_2(col);
         }
         return tr;
     }
@@ -391,7 +440,9 @@ lContent.className = "col";
 lContent.appendChild(createProblemView([appState, dispatch]));
 var rContent = document.createElement("div");
 rContent.className = "col align-items-center justify-content-center";
-rContent.appendChild(createResultView(10, 10, problems));
+var activeProblems = State.map(appState, function (f) { return f.activeProblems; });
+var resultViewVM = State.zip(activeProblems, results, function (activeProblems, results) { return ({ activeProblems: activeProblems, results: results }); });
+rContent.appendChild(createResultView(10, 10, resultViewVM));
 var contentElement = document.body;
 contentElement.className = "container";
 contentElement.appendChild(lContent);

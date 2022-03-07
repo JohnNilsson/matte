@@ -1,3 +1,12 @@
+.keypad *,
+.result-view * {
+  /* should be ok, nothing interesting _to_ select */
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
 /* Utilities */
 .container {
   width: 100%;
@@ -85,6 +94,13 @@ button:hover {
   font-size: 1.5rem;
   text-align: center;
   vertical-align: middle;
+}
+.result-view th:hover {
+  cursor: pointer;
+}
+
+.result-view th.disabled {
+  color: #333;
 }
 
 .result-view td {

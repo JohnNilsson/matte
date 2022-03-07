@@ -3,24 +3,26 @@
 //
 
 type State = {
-  currentProblem: Problem | null;
-  currentAnswer: number | null;
-  answers: Answer[];
-  activeProblems: {
-    as: boolean[];
-    bs: boolean[];
-  };
+  readonly currentProblem: Problem | null;
+  readonly currentAnswer: number | null;
+  readonly answers: readonly Answer[];
+  readonly activeProblems: ActiveProblems;
 };
 
 type Problem = {
-  startTime: number;
-  a: number;
-  b: number;
+  readonly startTime: number;
+  readonly a: number;
+  readonly b: number;
+};
+
+type ActiveProblems = {
+  readonly as: readonly boolean[];
+  readonly bs: readonly boolean[];
 };
 
 type Answer = Problem & {
-  answer: number;
-  answerTime: number;
+  readonly answer: number;
+  readonly answerTime: number;
 };
 
 const initialState: State = {
@@ -36,8 +38,54 @@ const initialState: State = {
 //
 // Actions
 //
+// class Model implements State {
+//   readonly currentProblem!: Problem | null;
+//   readonly currentAnswer!: number | null;
+//   readonly activeProblems!: {
+//     as: boolean[];
+//     bs: boolean[];
+//   };
+//   readonly answers!: Answer[];
+//   private constructor(newState: Partial<State>, oldState: State = initialState) {
+//     Object.assign(this, oldState ?? initialState, newState);
+//   }
+
+//   private with(patch: Partial<State>) {
+//     return new Model(patch, this);
+//   }
+
+//   loadAnswersFromLocalStorage() {
+//     return this.with({
+//       answers: JSON.parse(window.localStorage.getItem("answers") ?? "[]"),
+//     });
+//   }
+
+//   ["problem/start"](a: number, b: number, startTime: number) {
+//     return this.with({
+//       currentProblem: { a, b, startTime },
+//     });
+//   }
+// }
+
+// const Actions2 = {
+//   ["problem/start"](a: number, b: number, startTime: number) {
+//     return (state: State): State => ({
+//       ...state,
+//       currentProblem: { a, b, startTime },
+//     });
+//   },
+//   ["answer/update"](answer: number) {
+//     return (state: State): State => ({
+//       ...state,
+//       currentAnswer: answer,
+//     });
+//   },
+// };
+
 type Action =
   | { type: "problem/start"; a: number; b: number; startTime: number }
+  | { type: "activeProblems/toggle/a"; a: number }
+  | { type: "activeProblems/toggle/b"; b: number }
   | { type: "answer/update"; answer: number | null }
   | { type: "answer/confirm"; answerTime: number }
   | { type: "history/clear" };
@@ -55,7 +103,22 @@ const updateState =
             startTime: action.startTime,
           },
         };
-
+      case "activeProblems/toggle/a":
+        return {
+          ...state,
+          activeProblems: {
+            ...state.activeProblems,
+            as: state.activeProblems.as.map((isEnabled, problem) => (problem === action.a ? !isEnabled : isEnabled)),
+          },
+        };
+      case "activeProblems/toggle/b":
+        return {
+          ...state,
+          activeProblems: {
+            ...state.activeProblems,
+            bs: state.activeProblems.bs.map((isEnabled, problem) => (problem === action.b ? !isEnabled : isEnabled)),
+          },
+        };
       case "answer/update":
         if (state.currentProblem == null) {
           return state;
@@ -82,6 +145,9 @@ const updateState =
             };
       case "history/clear":
         return { ...state, answers: [] };
+      default:
+        const { type }: never = action;
+        throw new Error(`Unhandled action: '${type}'`);
     }
   };
 
@@ -122,7 +188,7 @@ namespace State {
   export type Listener<T> = (next: T, prev?: T) => void;
   export type Signal<T> = (listener: Listener<T>) => void;
 
-  export function create<T>(state: T): [Signal<T>, SetState<T>] {
+  export function create<T>(state: T, eq: (a: T, b: T) => boolean = Object.is): [Signal<T>, SetState<T>] {
     const listeners: Listener<T>[] = [];
     const signal: Signal<T> = listener => {
       listeners.push(listener);
@@ -130,7 +196,7 @@ namespace State {
     };
     const setState: SetState<T> = update => {
       const newState = update(state);
-      if (!Object.is(state, newState)) {
+      if (!eq(state, newState)) {
         for (const listener of listeners) {
           listener(newState, state);
         }
@@ -156,6 +222,21 @@ namespace State {
 
   export function map<T, U>(signal: Signal<T>, f: (state: T) => U): Signal<U> {
     return listener => signal(on(f, listener));
+  }
+
+  const sequenceEquals = (a: unknown[], b: unknown[]) => {
+    for (let i = 0; i < a.length; i++) {
+      if (!Object.is(a[i], b[i])) {
+        return false;
+      }
+    }
+    return true;
+  };
+  export function zip<T, U, V>(a: Signal<T>, b: Signal<U>, f: (a: T, b: U) => V): Signal<V> {
+    const [signal, setState] = State.create([undefined!, undefined!] as [a: T, b: U], sequenceEquals);
+    a(a => setState(s => [a, s[1]!]));
+    b(b => setState(s => [s[0]!, b]));
+    return map(signal, s => f(...s));
   }
 }
 
@@ -216,7 +297,7 @@ namespace AnswersByProblemIndex {
       [p]: [...(index[p] ?? []), answer],
     };
   };
-  export function create(answers: State.Signal<Answer[]>) {
+  export function create(answers: State.Signal<readonly Answer[]>) {
     const [subbscribe, update] = State.create<Index>({});
 
     let indexed = 0;
@@ -233,15 +314,15 @@ namespace AnswersByProblemIndex {
 }
 const answersByProblem = AnswersByProblemIndex.create(answers);
 
-type Problems = {
-  a: number;
-  b: number;
-  isCorrect: boolean[];
-  lastAnswerTime: number;
-  correctAnswers: number;
-}[];
-const problems = State.map(answersByProblem, index => {
-  const problems: Problems = [];
+type Result = {
+  readonly a: number;
+  readonly b: number;
+  readonly isCorrect: boolean[];
+  readonly lastAnswerTime: number;
+  readonly correctAnswers: number;
+};
+const results = State.map(answersByProblem, index => {
+  const results: Result[] = [];
   for (let a = 1; a < 10; a++) {
     for (let b = 1; b < 10; b++) {
       const c = a * b;
@@ -268,10 +349,10 @@ const problems = State.map(answersByProblem, index => {
           lastAnswerTime = answer.answerTime;
         }
       }
-      problems.push({ a, b, isCorrect, lastAnswerTime, correctAnswers });
+      results.push({ a, b, isCorrect, lastAnswerTime, correctAnswers });
     }
   }
-  problems.sort((p1, p2) => {
+  results.sort((p1, p2) => {
     const byCorrectAnswersAscending = p1.correctAnswers - p2.correctAnswers;
     if (byCorrectAnswersAscending !== 0) {
       return byCorrectAnswersAscending;
@@ -282,18 +363,26 @@ const problems = State.map(answersByProblem, index => {
     }
     return Math.random() - 0.5;
   });
-  return problems;
+  return results as readonly Result[];
 });
 
-problems(p => {
+// When answer is posted, trigger next problem
+results(p => {
   setTimeout(() => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const problem = p[0]!;
-    dispatch({
-      type: "problem/start",
-      a: problem.a,
-      b: problem.b,
-      startTime: Date.now(),
+    dispatch(state => {
+      const { as, bs } = state.activeProblems;
+      for (let { a, b } of p) {
+        if (as[a] && bs[b]) {
+          return {
+            type: "problem/start",
+            a,
+            b,
+            startTime: Date.now(),
+          };
+        }
+      }
+      return undefined;
     });
   }, 0);
 });
@@ -301,7 +390,6 @@ problems(p => {
 //
 // Views
 //
-
 function createProblemView([appState, dispatch]: Store.Store<State, Action>): HTMLElement {
   const root = document.createElement("div");
   root.className = "problem";
@@ -411,7 +499,15 @@ function createProblemView([appState, dispatch]: Store.Store<State, Action>): HT
   }
 }
 
-function createResultView(width: number, height: number, problems: State.Signal<Problems>) {
+type ResultViewModel = {
+  readonly activeProblems: ActiveProblems;
+  readonly results: readonly Result[];
+};
+
+function createResultView(width: number, height: number, vm: State.Signal<ResultViewModel>) {
+  const results = State.map(vm, s => s.results);
+  const activeProblems = State.map(vm, s => s.activeProblems);
+
   const table = document.createElement("table");
   table.className = "result-view";
 
@@ -429,6 +525,12 @@ function createResultView(width: number, height: number, problems: State.Signal<
     for (let col = 1; col < width; col++) {
       const th = document.createElement("th");
       th.innerHTML = String(col);
+      th.addEventListener("click", () => {
+        dispatch({ type: "activeProblems/toggle/b", b: col });
+      });
+      activeProblems(ps => {
+        th.className = ps.bs[col] ? "enabled" : "disabled";
+      });
       tr.appendChild(th);
     }
     return tr;
@@ -438,12 +540,18 @@ function createResultView(width: number, height: number, problems: State.Signal<
     const tr = document.createElement("tr");
     const th = document.createElement("th");
     th.innerHTML = String(row);
+    th.addEventListener("click", () => {
+      dispatch({ type: "activeProblems/toggle/a", a: row });
+    });
+    activeProblems(ps => {
+      th.className = ps.as[row] ? "enabled" : "disabled";
+    });
     tr.appendChild(th);
     for (let col = 1; col < width; col++) {
       const td = document.createElement("td");
       const r = row;
       const c = col;
-      const signal = State.map(problems, problems => {
+      const signal = State.map(results, problems => {
         const p = problems.find(p => p.a === r && p.b == c);
         if (p === undefined) {
           return "";
@@ -464,7 +572,10 @@ lContent.appendChild(createProblemView([appState, dispatch]));
 
 const rContent = document.createElement("div");
 rContent.className = "col align-items-center justify-content-center";
-rContent.appendChild(createResultView(10, 10, problems));
+
+const activeProblems = State.map(appState, f => f.activeProblems);
+const resultViewVM = State.zip(activeProblems, results, (activeProblems, results) => ({ activeProblems, results }));
+rContent.appendChild(createResultView(10, 10, resultViewVM));
 
 const contentElement = document.body;
 contentElement.className = "container";
