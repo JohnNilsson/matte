@@ -272,7 +272,7 @@ namespace Store {
 
 const [appState, dispatch] = Store.create<State, Action>(initialState, updateState);
 
-appState(s => console.log("appState", s));
+//appState(s => console.log("appState", s));
 
 const answers = State.map(appState, s => s.answers);
 

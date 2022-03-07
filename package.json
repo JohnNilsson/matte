@@ -9,5 +9,9 @@
   },
   "browserslist": [
     "Chrome 38"
-  ]
+  ],
+  "prettier": {
+    "arrowParens": "avoid",
+    "printWidth": 160
+  }
 }

@@ -42,9 +42,13 @@ var updateState = function (action) {
                         startTime: action.startTime,
                     } });
             case "activeProblems/toggle/a":
-                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { as: state.activeProblems.as.map(function (isEnabled, problem) { return (problem === action.a ? !isEnabled : isEnabled); }) }) });
+                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { as: state.activeProblems.as.map(function (isEnabled, problem) {
+                            return problem === action.a ? !isEnabled : isEnabled;
+                        }) }) });
             case "activeProblems/toggle/b":
-                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { bs: state.activeProblems.bs.map(function (isEnabled, problem) { return (problem === action.b ? !isEnabled : isEnabled); }) }) });
+                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { bs: state.activeProblems.bs.map(function (isEnabled, problem) {
+                            return problem === action.b ? !isEnabled : isEnabled;
+                        }) }) });
             case "answer/update":
                 if (state.currentProblem == null) {
                     return state;
@@ -149,7 +153,9 @@ var State;
 })(State || (State = {}));
 var Store;
 (function (Store) {
-    var isThunk = function (action) { return typeof action === "function"; };
+    var isThunk = function (action) {
+        return typeof action === "function";
+    };
     function create(initialState, update) {
         var _a = State.create(initialState), signal = _a[0], setState = _a[1];
         var dispatch = function (action) {
@@ -173,9 +179,11 @@ var Store;
     Store.create = create;
 })(Store || (Store = {}));
 var _b = Store.create(initialState, updateState), appState = _b[0], dispatch = _b[1];
-appState(function (s) { return console.log("appState", s); });
+//appState(s => console.log("appState", s));
 var answers = State.map(appState, function (s) { return s.answers; });
-answers(function (answers) { return window.localStorage.setItem("answers", JSON.stringify(answers)); });
+answers(function (answers) {
+    return window.localStorage.setItem("answers", JSON.stringify(answers));
+});
 //
 // Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
 // where trials are attemts to answer a problem.
