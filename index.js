@@ -42,13 +42,9 @@ var updateState = function (action) {
                         startTime: action.startTime,
                     } });
             case "activeProblems/toggle/a":
-                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { as: state.activeProblems.as.map(function (isEnabled, problem) {
-                            return problem === action.a ? !isEnabled : isEnabled;
-                        }) }) });
+                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { as: state.activeProblems.as.map(function (isEnabled, problem) { return (problem === action.a ? !isEnabled : isEnabled); }) }) });
             case "activeProblems/toggle/b":
-                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { bs: state.activeProblems.bs.map(function (isEnabled, problem) {
-                            return problem === action.b ? !isEnabled : isEnabled;
-                        }) }) });
+                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { bs: state.activeProblems.bs.map(function (isEnabled, problem) { return (problem === action.b ? !isEnabled : isEnabled); }) }) });
             case "answer/update":
                 if (state.currentProblem == null) {
                     return state;
@@ -153,9 +149,7 @@ var State;
 })(State || (State = {}));
 var Store;
 (function (Store) {
-    var isThunk = function (action) {
-        return typeof action === "function";
-    };
+    var isThunk = function (action) { return typeof action === "function"; };
     function create(initialState, update) {
         var _a = State.create(initialState), signal = _a[0], setState = _a[1];
         var dispatch = function (action) {
@@ -181,9 +175,7 @@ var Store;
 var _b = Store.create(initialState, updateState), appState = _b[0], dispatch = _b[1];
 //appState(s => console.log("appState", s));
 var answers = State.map(appState, function (s) { return s.answers; });
-answers(function (answers) {
-    return window.localStorage.setItem("answers", JSON.stringify(answers));
-});
+answers(function (answers) { return window.localStorage.setItem("answers", JSON.stringify(answers)); });
 //
 // Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
 // where trials are attemts to answer a problem.
@@ -426,13 +418,13 @@ function createResultView(width, height, vm) {
             var r = row;
             var c = col;
             var signal = State.map(results, function (problems) {
-                var p = problems.find(function (p) { return p.a === r && p.b == c; });
-                if (p === undefined) {
-                    return "";
+                for (var _i = 0, problems_1 = problems; _i < problems_1.length; _i++) {
+                    var p = problems_1[_i];
+                    if (p.a === r && p.b == c) {
+                        return p.isCorrect.map(function (correct) { return (correct ? "🟢" : "🔴"); }).join("");
+                    }
                 }
-                else {
-                    return p.isCorrect.map(function (correct) { return (correct ? "🟢" : "🔴"); }).join("");
-                }
+                return "";
             });
             signal(function (s) { return (td.innerHTML = s); });
             tr.appendChild(td);

@@ -552,12 +552,12 @@ function createResultView(width: number, height: number, vm: State.Signal<Result
       const r = row;
       const c = col;
       const signal = State.map(results, problems => {
-        const p = problems.find(p => p.a === r && p.b == c);
-        if (p === undefined) {
-          return "";
-        } else {
-          return p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join("");
+        for (const p of problems) {
+          if (p.a === r && p.b == c) {
+            return p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join("");
+          }
         }
+        return "";
       });
       signal(s => (td.innerHTML = s));
       tr.appendChild(td);
