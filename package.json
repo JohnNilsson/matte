@@ -4,11 +4,12 @@
     "watch": "tsc --watch"
   },
   "devDependencies": {
-    "typescript": "^4.6.2",
-    "@tsconfig/strictest": "^1.0.0"
+    "@mdn/browser-compat-data": "^5.3.27",
+    "@tsconfig/strictest": "^2.0.2",
+    "typescript": "^5.2.2"
   },
   "browserslist": [
-    "Chrome 38"
+    "defaults"
   ],
   "prettier": {
     "arrowParens": "avoid",

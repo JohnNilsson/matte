@@ -2,67 +2,72 @@
 //
 // Model
 //
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-var _a;
-var initialState = {
+const initialState = {
     currentProblem: null,
     currentAnswer: null,
-    answers: JSON.parse((_a = window.localStorage.getItem("answers")) !== null && _a !== void 0 ? _a : "[]"),
+    answers: JSON.parse(window.localStorage.getItem("answers") ?? "[]"),
     activeProblems: {
         as: [false, true, true, true, true, true, true, true, true, true, true],
         bs: [false, true, true, true, true, true, true, true, true, true, true],
     },
 };
-var updateState = function (action) {
-    return function (state) {
-        switch (action.type) {
-            case "problem/start":
-                return __assign(__assign({}, state), { currentProblem: {
-                        a: action.a,
-                        b: action.b,
-                        startTime: action.startTime,
-                    } });
-            case "activeProblems/toggle/a":
-                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { as: state.activeProblems.as.map(function (isEnabled, problem) { return (problem === action.a ? !isEnabled : isEnabled); }) }) });
-            case "activeProblems/toggle/b":
-                return __assign(__assign({}, state), { activeProblems: __assign(__assign({}, state.activeProblems), { bs: state.activeProblems.bs.map(function (isEnabled, problem) { return (problem === action.b ? !isEnabled : isEnabled); }) }) });
-            case "answer/update":
-                if (state.currentProblem == null) {
-                    return state;
-                }
-                return __assign(__assign({}, state), { currentAnswer: action.answer });
-            case "answer/confirm":
-                return state.currentProblem == null || state.currentAnswer == null
-                    ? state
-                    : __assign(__assign({}, state), { currentProblem: null, currentAnswer: null, answers: __spreadArray(__spreadArray([], state.answers, true), [
-                            __assign(__assign({}, state.currentProblem), { answer: state.currentAnswer, answerTime: action.answerTime }),
-                        ], false) });
-            case "history/clear":
-                return __assign(__assign({}, state), { answers: [] });
-            default:
-                var type = action.type;
-                throw new Error("Unhandled action: '".concat(type, "'"));
-        }
-    };
+const updateState = (action) => (state) => {
+    switch (action.type) {
+        case "problem/start":
+            return {
+                ...state,
+                currentProblem: {
+                    a: action.a,
+                    b: action.b,
+                    startTime: action.startTime,
+                },
+            };
+        case "activeProblems/toggle/a":
+            return {
+                ...state,
+                activeProblems: {
+                    ...state.activeProblems,
+                    as: state.activeProblems.as.map((isEnabled, problem) => (problem === action.a ? !isEnabled : isEnabled)),
+                },
+            };
+        case "activeProblems/toggle/b":
+            return {
+                ...state,
+                activeProblems: {
+                    ...state.activeProblems,
+                    bs: state.activeProblems.bs.map((isEnabled, problem) => (problem === action.b ? !isEnabled : isEnabled)),
+                },
+            };
+        case "answer/update":
+            if (state.currentProblem == null) {
+                return state;
+            }
+            return {
+                ...state,
+                currentAnswer: action.answer,
+            };
+        case "answer/confirm":
+            return state.currentProblem == null || state.currentAnswer == null
+                ? state
+                : {
+                    ...state,
+                    currentProblem: null,
+                    currentAnswer: null,
+                    answers: [
+                        ...state.answers,
+                        {
+                            ...state.currentProblem,
+                            answer: state.currentAnswer,
+                            answerTime: action.answerTime,
+                        },
+                    ],
+                };
+        case "history/clear":
+            return { ...state, answers: [] };
+        default:
+            const { type } = action;
+            throw new Error(`Unhandled action: '${type}'`);
+    }
 };
 // namespace JSX {
 //   export type IntrinsicElements = {
@@ -93,18 +98,16 @@ var updateState = function (action) {
 // }
 var State;
 (function (State) {
-    function create(state, eq) {
-        if (eq === void 0) { eq = Object.is; }
-        var listeners = [];
-        var signal = function (listener) {
+    function create(state, eq = Object.is) {
+        const listeners = [];
+        const signal = listener => {
             listeners.push(listener);
             listener(state);
         };
-        var setState = function (update) {
-            var newState = update(state);
+        const setState = update => {
+            const newState = update(state);
             if (!eq(state, newState)) {
-                for (var _i = 0, listeners_1 = listeners; _i < listeners_1.length; _i++) {
-                    var listener = listeners_1[_i];
+                for (const listener of listeners) {
                     listener(newState, state);
                 }
                 state = newState;
@@ -113,26 +116,24 @@ var State;
         return [signal, setState];
     }
     State.create = create;
-    var on = function (extract, listener) {
-        return function (next, prev) {
-            var nextValue = extract(next);
-            if (prev === undefined) {
-                listener(nextValue);
+    const on = (extract, listener) => (next, prev) => {
+        const nextValue = extract(next);
+        if (prev === undefined) {
+            listener(nextValue);
+        }
+        else {
+            const prevValue = extract(prev);
+            if (!Object.is(nextValue, prevValue)) {
+                listener(nextValue, prevValue);
             }
-            else {
-                var prevValue = extract(prev);
-                if (!Object.is(nextValue, prevValue)) {
-                    listener(nextValue, prevValue);
-                }
-            }
-        };
+        }
     };
     function map(signal, f) {
-        return function (listener) { return signal(on(f, listener)); };
+        return listener => signal(on(f, listener));
     }
     State.map = map;
-    var sequenceEquals = function (a, b) {
-        for (var i = 0; i < a.length; i++) {
+    const sequenceEquals = (a, b) => {
+        for (let i = 0; i < a.length; i++) {
             if (!Object.is(a[i], b[i])) {
                 return false;
             }
@@ -140,22 +141,22 @@ var State;
         return true;
     };
     function zip(a, b, f) {
-        var _a = State.create([undefined, undefined], sequenceEquals), signal = _a[0], setState = _a[1];
-        a(function (a) { return setState(function (s) { return [a, s[1]]; }); });
-        b(function (b) { return setState(function (s) { return [s[0], b]; }); });
-        return map(signal, function (s) { return f.apply(void 0, s); });
+        const [signal, setState] = State.create([undefined, undefined], sequenceEquals);
+        a(a => setState(s => [a, s[1]]));
+        b(b => setState(s => [s[0], b]));
+        return map(signal, s => f(...s));
     }
     State.zip = zip;
 })(State || (State = {}));
 var Store;
 (function (Store) {
-    var isThunk = function (action) { return typeof action === "function"; };
+    const isThunk = (action) => typeof action === "function";
     function create(initialState, update) {
-        var _a = State.create(initialState), signal = _a[0], setState = _a[1];
-        var dispatch = function (action) {
+        const [signal, setState] = State.create(initialState);
+        const dispatch = action => {
             if (isThunk(action)) {
-                setState(function (s) {
-                    var nextAction = action(s);
+                setState(s => {
+                    const nextAction = action(s);
                     if (nextAction !== undefined) {
                         return update(nextAction)(s);
                     }
@@ -172,10 +173,10 @@ var Store;
     }
     Store.create = create;
 })(Store || (Store = {}));
-var _b = Store.create(initialState, updateState), appState = _b[0], dispatch = _b[1];
+const [appState, dispatch] = Store.create(initialState, updateState);
 //appState(s => console.log("appState", s));
-var answers = State.map(appState, function (s) { return s.answers; });
-answers(function (answers) { return window.localStorage.setItem("answers", JSON.stringify(answers)); });
+const answers = State.map(appState, s => s.answers);
+answers(answers => window.localStorage.setItem("answers", JSON.stringify(answers)));
 //
 // Spaced repetition suggests that long term retention improves with the number of trials between repeated (succesfull) tests
 // where trials are attemts to answer a problem.
@@ -186,18 +187,19 @@ answers(function (answers) { return window.localStorage.setItem("answers", JSON.
 // Indices
 var AnswersByProblemIndex;
 (function (AnswersByProblemIndex) {
-    AnswersByProblemIndex.key = function (a, b) { return "".concat(a, "*").concat(b); };
-    var add = function (answer) { return function (index) {
-        var _a;
-        var _b;
-        var p = AnswersByProblemIndex.key(answer.a, answer.b);
-        return __assign(__assign({}, index), (_a = {}, _a[p] = __spreadArray(__spreadArray([], ((_b = index[p]) !== null && _b !== void 0 ? _b : []), true), [answer], false), _a));
-    }; };
+    AnswersByProblemIndex.key = (a, b) => `${a}*${b}`;
+    const add = (answer) => (index) => {
+        const p = AnswersByProblemIndex.key(answer.a, answer.b);
+        return {
+            ...index,
+            [p]: [...(index[p] ?? []), answer],
+        };
+    };
     function create(answers) {
-        var _a = State.create({}), subbscribe = _a[0], update = _a[1];
-        var indexed = 0;
-        answers(function (answers) {
-            for (var i = indexed; i < answers.length; i++) {
+        const [subbscribe, update] = State.create({});
+        let indexed = 0;
+        answers(answers => {
+            for (let i = indexed; i < answers.length; i++) {
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 update(add(answers[i]));
             }
@@ -207,24 +209,24 @@ var AnswersByProblemIndex;
     }
     AnswersByProblemIndex.create = create;
 })(AnswersByProblemIndex || (AnswersByProblemIndex = {}));
-var answersByProblem = AnswersByProblemIndex.create(answers);
-var results = State.map(answersByProblem, function (index) {
-    var _a;
-    var results = [];
-    for (var a = 1; a < 10; a++) {
-        for (var b = 1; b < 10; b++) {
-            var c = a * b;
-            var p = AnswersByProblemIndex.key(a, b);
-            var answers_1 = (_a = index[p]) !== null && _a !== void 0 ? _a : [];
-            answers_1.sort(function (a1, a2) { return a2.answerTime - a1.answerTime; }); //a1-a2 = ascending, a2-a1 = descending;
-            answers_1 = answers_1.slice(0, Math.min(answers_1.length, 9));
-            answers_1.reverse();
-            var isCorrect = [];
-            var lastAnswerTime = 0;
-            var correctAnswers = 0;
-            for (var i = 0; i < 10 && i < answers_1.length; i++) {
+const answersByProblem = AnswersByProblemIndex.create(answers);
+const results = State.map(answersByProblem, index => {
+    const results = [];
+    for (let a = 1; a < 10; a++) {
+        for (let b = 1; b < 10; b++) {
+            const c = a * b;
+            const p = AnswersByProblemIndex.key(a, b);
+            let answers = index[p] ?? [];
+            answers.sort((a1, a2) => a2.answerTime - a1.answerTime); //a1-a2 = ascending, a2-a1 = descending;
+            answers = answers.slice(0, Math.min(answers.length, 9));
+            answers.reverse();
+            const isCorrect = [];
+            let lastAnswerTime = 0;
+            let correctAnswers = 0;
+            const answerDuration = [];
+            for (let i = 0; i < 10 && i < answers.length; i++) {
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                var answer = answers_1[i];
+                const answer = answers[i];
                 if (answer.answer === c) {
                     isCorrect[i] = true;
                     correctAnswers++;
@@ -236,16 +238,17 @@ var results = State.map(answersByProblem, function (index) {
                 if (answer.answerTime > lastAnswerTime) {
                     lastAnswerTime = answer.answerTime;
                 }
+                answerDuration[i] = answer.answerTime - answer.startTime;
             }
-            results.push({ a: a, b: b, isCorrect: isCorrect, lastAnswerTime: lastAnswerTime, correctAnswers: correctAnswers });
+            results.push({ a, b, isCorrect, lastAnswerTime, correctAnswers, answerDuration });
         }
     }
-    results.sort(function (p1, p2) {
-        var byCorrectAnswersAscending = p1.correctAnswers - p2.correctAnswers;
+    results.sort((p1, p2) => {
+        const byCorrectAnswersAscending = p1.correctAnswers - p2.correctAnswers;
         if (byCorrectAnswersAscending !== 0) {
             return byCorrectAnswersAscending;
         }
-        var byLastAnswerTimeAscending = p1.lastAnswerTime - p2.lastAnswerTime;
+        const byLastAnswerTimeAscending = p1.lastAnswerTime - p2.lastAnswerTime;
         if (byLastAnswerTimeAscending !== 0) {
             return byLastAnswerTimeAscending;
         }
@@ -254,18 +257,17 @@ var results = State.map(answersByProblem, function (index) {
     return results;
 });
 // When answer is posted, trigger next problem
-results(function (p) {
-    setTimeout(function () {
+results(p => {
+    setTimeout(() => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        dispatch(function (state) {
-            var _a = state.activeProblems, as = _a.as, bs = _a.bs;
-            for (var _i = 0, p_1 = p; _i < p_1.length; _i++) {
-                var _b = p_1[_i], a = _b.a, b = _b.b;
+        dispatch(state => {
+            const { as, bs } = state.activeProblems;
+            for (let { a, b } of p) {
                 if (as[a] && bs[b]) {
                     return {
                         type: "problem/start",
-                        a: a,
-                        b: b,
+                        a,
+                        b,
                         startTime: Date.now(),
                     };
                 }
@@ -277,17 +279,16 @@ results(function (p) {
 //
 // Views
 //
-function createProblemView(_a) {
-    var appState = _a[0], dispatch = _a[1];
-    var root = document.createElement("div");
+function createProblemView([appState, dispatch]) {
+    const root = document.createElement("div");
     root.className = "problem";
-    var currentProblem = State.map(appState, function (s) { return s.currentProblem; });
-    var currentAnswer = State.map(appState, function (s) { return s.currentAnswer; });
+    const currentProblem = State.map(appState, s => s.currentProblem);
+    const currentAnswer = State.map(appState, s => s.currentAnswer);
     root.appendChild(createExpression(currentProblem, currentAnswer));
     root.appendChild(createKeypad({
-        onDigit: function (digit) {
-            dispatch(function (state) {
-                var currentAnswer = state.currentAnswer;
+        onDigit(digit) {
+            dispatch(state => {
+                const currentAnswer = state.currentAnswer;
                 if (currentAnswer === null) {
                     return {
                         type: "answer/update",
@@ -302,49 +303,57 @@ function createProblemView(_a) {
                 }
             });
         },
-        onErase: function () {
-            dispatch(function (state) {
-                var answer = state.currentAnswer;
+        onErase() {
+            dispatch(state => {
+                const answer = state.currentAnswer;
                 if (answer === null) {
                     return undefined;
                 }
-                var answerString = String(answer);
+                const answerString = String(answer);
                 if (answerString.length == 1) {
                     return { type: "answer/update", answer: null };
                 }
                 else {
-                    var newAnswer = Number(answerString.substring(0, answerString.length - 1));
+                    const newAnswer = Number(answerString.substring(0, answerString.length - 1));
                     return { type: "answer/update", answer: newAnswer };
                 }
             });
         },
-        onConfirm: function () {
+        onConfirm() {
             dispatch({ type: "answer/confirm", answerTime: Date.now() });
         },
     }));
     return root;
     function createExpression(problem, answer) {
-        var root = document.createElement("div");
+        const root = document.createElement("div");
         root.className = "expression row justify-content-center";
-        root.innerHTML = "\n      <div class=\"lhs\"></div>\n      <div class=\"rhs\"></div>\n    ";
+        root.innerHTML = `
+      <div class="lhs"></div>
+      <div class="rhs"></div>
+    `;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        var lhs = root.querySelector(".lhs");
-        problem(function (p) { return (lhs.innerHTML = p != null ? "".concat(p.a, " \u00D7 ").concat(p.b, " =&nbsp;") : ""); });
+        const lhs = root.querySelector(".lhs");
+        problem(p => (lhs.innerHTML = p != null ? `${p.a} × ${p.b} =&nbsp;` : ""));
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        var rhs = root.querySelector(".rhs");
-        answer(function (a) { return (rhs.innerHTML = a != null ? String(a) : ""); });
+        const rhs = root.querySelector(".rhs");
+        answer(a => (rhs.innerHTML = a != null ? String(a) : ""));
         return root;
     }
     function createKeypad(props) {
-        var root = document.createElement("table");
+        const root = document.createElement("table");
         root.className = "keypad";
-        root.innerHTML = "\n      <tr><td><button>1</button></td><td><button>2</button></td><td><button>3</button></td></tr>\n      <tr><td><button>4</button></td><td><button>5</button></td><td><button>6</button></td></tr>\n      <tr><td><button>7</button></td><td><button>8</button></td><td><button>9</button></td></tr>\n      <tr><td><button>\u2713</button></td><td><button>0</button></td><td><button>\u232B</button></td></tr>\n    ";
-        var buttons = root.querySelectorAll("button");
-        for (var i = 0; i < buttons.length; i++) {
-            var button = buttons[i];
-            button.addEventListener("click", function (ev) {
-                var btn = ev.target;
-                var txt = btn.innerHTML;
+        root.innerHTML = `
+      <tr><td><button>1</button></td><td><button>2</button></td><td><button>3</button></td></tr>
+      <tr><td><button>4</button></td><td><button>5</button></td><td><button>6</button></td></tr>
+      <tr><td><button>7</button></td><td><button>8</button></td><td><button>9</button></td></tr>
+      <tr><td><button>✓</button></td><td><button>0</button></td><td><button>⌫</button></td></tr>
+    `;
+        const buttons = root.querySelectorAll("button");
+        for (let i = 0; i < buttons.length; i++) {
+            const button = buttons[i];
+            button.addEventListener("click", ev => {
+                const btn = ev.target;
+                const txt = btn.innerHTML;
                 switch (txt) {
                     case "0":
                     case "1":
@@ -372,78 +381,87 @@ function createProblemView(_a) {
     }
 }
 function createResultView(width, height, vm) {
-    var results = State.map(vm, function (s) { return s.results; });
-    var activeProblems = State.map(vm, function (s) { return s.activeProblems; });
-    var table = document.createElement("table");
+    const results = State.map(vm, s => s.results);
+    const activeProblems = State.map(vm, s => s.activeProblems);
+    const table = document.createElement("table");
     table.className = "result-view";
     table.appendChild(createHeaderRow());
-    for (var row = 1; row < height; row++) {
+    for (let row = 1; row < height; row++) {
         table.appendChild(createBodyRow(row));
     }
     return table;
     function createHeaderRow() {
-        var tr = document.createElement("tr");
-        var th = document.createElement("th");
+        const tr = document.createElement("tr");
+        const th = document.createElement("th");
         th.innerText = "×";
         tr.appendChild(th);
-        var _loop_1 = function (col) {
-            var th_1 = document.createElement("th");
-            th_1.innerHTML = String(col);
-            th_1.addEventListener("click", function () {
+        for (let col = 1; col < width; col++) {
+            const th = document.createElement("th");
+            th.innerHTML = String(col);
+            th.addEventListener("click", () => {
                 dispatch({ type: "activeProblems/toggle/b", b: col });
             });
-            activeProblems(function (ps) {
-                th_1.className = ps.bs[col] ? "enabled" : "disabled";
+            activeProblems(ps => {
+                th.className = ps.bs[col] ? "enabled" : "disabled";
             });
-            tr.appendChild(th_1);
-        };
-        for (var col = 1; col < width; col++) {
-            _loop_1(col);
+            tr.appendChild(th);
         }
         return tr;
     }
     function createBodyRow(row) {
-        var tr = document.createElement("tr");
-        var th = document.createElement("th");
+        const tr = document.createElement("tr");
+        const th = document.createElement("th");
         th.innerHTML = String(row);
-        th.addEventListener("click", function () {
+        th.addEventListener("click", () => {
             dispatch({ type: "activeProblems/toggle/a", a: row });
         });
-        activeProblems(function (ps) {
+        activeProblems(ps => {
             th.className = ps.as[row] ? "enabled" : "disabled";
         });
         tr.appendChild(th);
-        var _loop_2 = function (col) {
-            var td = document.createElement("td");
-            var r = row;
-            var c = col;
-            var signal = State.map(results, function (problems) {
-                for (var _i = 0, problems_1 = problems; _i < problems_1.length; _i++) {
-                    var p = problems_1[_i];
+        for (let col = 1; col < width; col++) {
+            const td = document.createElement("td");
+            const r = row;
+            const c = col;
+            const signal = State.map(results, problems => {
+                const MAX_TIME = 60_000;
+                const bestDuration = problems.flatMap(p => p.answerDuration).reduce((a, b) => Math.min(a, b), MAX_TIME) ?? 0;
+                for (const p of problems) {
                     if (p.a === r && p.b == c) {
-                        return p.isCorrect.map(function (correct) { return (correct ? "🟢" : "🔴"); }).join("");
+                        let quality = 0;
+                        if (p.answerDuration.length !== 0) {
+                            const avgTime = p.answerDuration.reduce((a, b) => Math.min(a, MAX_TIME) + Math.min(b, MAX_TIME), 0) / p.answerDuration.length;
+                            // Set qualit 0-1 based on how close avgTime is to bestDuration
+                            quality = Math.max(0, 1 - Math.abs(avgTime - bestDuration) / bestDuration);
+                        }
+                        return {
+                            innerHTML: p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join(""),
+                            style: {
+                                backgroundColor: `hsl(0, 0%, ${quality * 50}%)`,
+                            },
+                        };
                     }
                 }
-                return "";
+                return { innerHTML: "", style: { backgroundColor: "transparent" } };
             });
-            signal(function (s) { return (td.innerHTML = s); });
+            signal(s => {
+                td.innerHTML = s.innerHTML;
+                td.style.backgroundColor = s.style.backgroundColor;
+            });
             tr.appendChild(td);
-        };
-        for (var col = 1; col < width; col++) {
-            _loop_2(col);
         }
         return tr;
     }
 }
-var lContent = document.createElement("div");
+const lContent = document.createElement("div");
 lContent.className = "col";
 lContent.appendChild(createProblemView([appState, dispatch]));
-var rContent = document.createElement("div");
+const rContent = document.createElement("div");
 rContent.className = "col align-items-center justify-content-center";
-var activeProblems = State.map(appState, function (f) { return f.activeProblems; });
-var resultViewVM = State.zip(activeProblems, results, function (activeProblems, results) { return ({ activeProblems: activeProblems, results: results }); });
+const activeProblems = State.map(appState, f => f.activeProblems);
+const resultViewVM = State.zip(activeProblems, results, (activeProblems, results) => ({ activeProblems, results }));
 rContent.appendChild(createResultView(10, 10, resultViewVM));
-var contentElement = document.body;
+const contentElement = document.body;
 contentElement.className = "container";
 contentElement.appendChild(lContent);
 contentElement.appendChild(rContent);

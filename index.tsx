@@ -320,6 +320,7 @@ type Result = {
   readonly isCorrect: boolean[];
   readonly lastAnswerTime: number;
   readonly correctAnswers: number;
+  readonly answerDuration: number[];
 };
 const results = State.map(answersByProblem, index => {
   const results: Result[] = [];
@@ -335,6 +336,7 @@ const results = State.map(answersByProblem, index => {
       const isCorrect: boolean[] = [];
       let lastAnswerTime = 0;
       let correctAnswers = 0;
+      const answerDuration: number[] = [];
       for (let i = 0; i < 10 && i < answers.length; i++) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const answer = answers[i]!;
@@ -348,8 +350,9 @@ const results = State.map(answersByProblem, index => {
         if (answer.answerTime > lastAnswerTime) {
           lastAnswerTime = answer.answerTime;
         }
+        answerDuration[i] = answer.answerTime - answer.startTime;
       }
-      results.push({ a, b, isCorrect, lastAnswerTime, correctAnswers });
+      results.push({ a, b, isCorrect, lastAnswerTime, correctAnswers, answerDuration });
     }
   }
   results.sort((p1, p2) => {
@@ -552,14 +555,30 @@ function createResultView(width: number, height: number, vm: State.Signal<Result
       const r = row;
       const c = col;
       const signal = State.map(results, problems => {
+        const MAX_TIME = 60_000;
+        const bestDuration = problems.flatMap(p => p.answerDuration).reduce((a, b) => Math.min(a, b), MAX_TIME) ?? 0;
         for (const p of problems) {
           if (p.a === r && p.b == c) {
-            return p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join("");
+            let quality = 0;
+            if (p.answerDuration.length !== 0) {
+              const avgTime = p.answerDuration.reduce((a, b) => Math.min(a, MAX_TIME) + Math.min(b, MAX_TIME), 0) / p.answerDuration.length;
+              // Set qualit 0-1 based on how close avgTime is to bestDuration
+              quality = Math.max(0, 1 - Math.abs(avgTime - bestDuration) / bestDuration);
+            }
+            return {
+              innerHTML: p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join(""),
+              style: {
+                backgroundColor: `hsl(0, 0%, ${quality * 50}%)`,
+              },
+            };
           }
         }
-        return "";
+        return { innerHTML: "", style: { backgroundColor: "transparent" } };
       });
-      signal(s => (td.innerHTML = s));
+      signal(s => {
+        td.innerHTML = s.innerHTML;
+        td.style.backgroundColor = s.style.backgroundColor;
+      });
       tr.appendChild(td);
     }
     return tr;
