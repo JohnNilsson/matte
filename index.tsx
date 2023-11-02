@@ -314,13 +314,14 @@ namespace AnswersByProblemIndex {
 }
 const answersByProblem = AnswersByProblemIndex.create(answers);
 
+const MAX_DURATION = 10_000;
 type Result = {
   readonly a: number;
   readonly b: number;
   readonly isCorrect: boolean[];
   readonly lastAnswerTime: number;
-  readonly correctAnswers: number;
-  readonly answerDuration: number[];
+  readonly streak: number;
+  readonly duration: number;
 };
 const results = State.map(answersByProblem, index => {
   const results: Result[] = [];
@@ -328,35 +329,39 @@ const results = State.map(answersByProblem, index => {
     for (let b = 1; b < 10; b++) {
       const c = a * b;
       const p = AnswersByProblemIndex.key(a, b);
+
       let answers = index[p] ?? [];
-      answers.sort((a1, a2) => a2.answerTime - a1.answerTime); //a1-a2 = ascending, a2-a1 = descending;
-      answers = answers.slice(0, Math.min(answers.length, 9));
-      answers.reverse();
+      let lastAnswerTime = 0;
+      if (answers.length !== 0) {
+        // Last 9 answers
+        answers.sort((a1, a2) => a2.answerTime - a1.answerTime); //a1-a2 = ascending, a2-a1 = descending;
+        answers = answers.slice(0, Math.min(answers.length, 9));
+        lastAnswerTime = answers[0]!.answerTime;
+        // in ascending order
+        answers.reverse();
+      }
 
       const isCorrect: boolean[] = [];
-      let lastAnswerTime = 0;
-      let correctAnswers = 0;
-      const answerDuration: number[] = [];
+      let streak = 0;
+      let duration = MAX_DURATION;
       for (let i = 0; i < 10 && i < answers.length; i++) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const answer = answers[i]!;
         if (answer.answer === c) {
           isCorrect[i] = true;
-          correctAnswers++;
+          streak++;
+          duration = Math.min(duration, answer.answerTime - answer.startTime);
         } else {
           isCorrect[i] = false;
-          correctAnswers = 0;
+          streak = 0;
+          duration = MAX_DURATION;
         }
-        if (answer.answerTime > lastAnswerTime) {
-          lastAnswerTime = answer.answerTime;
-        }
-        answerDuration[i] = answer.answerTime - answer.startTime;
       }
-      results.push({ a, b, isCorrect, lastAnswerTime, correctAnswers, answerDuration });
+      results.push({ a, b, isCorrect, lastAnswerTime, streak, duration });
     }
   }
   results.sort((p1, p2) => {
-    const byCorrectAnswersAscending = p1.correctAnswers - p2.correctAnswers;
+    const byCorrectAnswersAscending = p1.streak - p2.streak;
     if (byCorrectAnswersAscending !== 0) {
       return byCorrectAnswersAscending;
     }
@@ -552,23 +557,14 @@ function createResultView(width: number, height: number, vm: State.Signal<Result
     tr.appendChild(th);
     for (let col = 1; col < width; col++) {
       const td = document.createElement("td");
-      const r = row;
-      const c = col;
       const signal = State.map(results, problems => {
-        const MAX_TIME = 60_000;
-        const bestDuration = problems.flatMap(p => p.answerDuration).reduce((a, b) => Math.min(a, b), MAX_TIME) ?? 0;
         for (const p of problems) {
-          if (p.a === r && p.b == c) {
-            let quality = 0;
-            if (p.answerDuration.length !== 0) {
-              const avgTime = p.answerDuration.reduce((a, b) => Math.min(a, MAX_TIME) + Math.min(b, MAX_TIME), 0) / p.answerDuration.length;
-              // Set qualit 0-1 based on how close avgTime is to bestDuration
-              quality = Math.max(0, 1 - Math.abs(avgTime - bestDuration) / bestDuration);
-            }
+          if (p.a === row && p.b == col) {
+            const score = 1 - p.duration / MAX_DURATION;
             return {
-              innerHTML: p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join(""),
+              innerHTML: p.isCorrect.map(correct => (correct ? "🟢" : "🔴")).join("&ZeroWidthSpace;"),
               style: {
-                backgroundColor: `hsl(0, 0%, ${quality * 50}%)`,
+                backgroundColor: `hsl(0, 0%, ${score * 100}%)`,
               },
             };
           }
